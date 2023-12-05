@@ -1,0 +1,652 @@
+@Comment In this code using the typescript  and create the dialog in the retail modern pos create a new dilog using 3 files
+HTML for seen the View *PaymentListHTML ,
+Typescript  for write the request and response add the validation and constructor *PaymentListDialog*
+Using Interface fo the Dilog to store the Primary value in interface *IPaymentListResult*
+
+In the Code first  import the files when we use in the dialog . Declares some properties. call the constructor for load the data.
+using element: HTMLElement Class for bind the HTML  .Open the  Dilog when we call the Opertaion (operation is type of Button when we click the Button  dialog open method call.
+And using the Base functionality given by the microsoft for customer Name ,ID,Mobile,trsactionId etc .
+On diloag create the button ( ok and Cancel) and ok and cancel we write the funtionality  on click the Button .
+using the entities , interface ,add tender, read the Extention properties and save .
+
+*****************************************************************************************************************************************************************************************
+import * as Dialogs from "PosApi/Create/Dialogs";
+import { IExtensionContext } from "PosApi/Framework/ExtensionContext";
+import { ObjectExtensions } from "PosApi/TypeExtensions";
+import {AcxDynamicQRData, AcxEstimatePayment, AcxGlobalMethods, AcxCoupon, AcxVoucherData } from "../../../DataService/DataServiceRequests";
+import * as estimatePaymentEntities from "../../../DataService/DataServiceEntities";
+import { Global } from "../../../DataService/global";
+import { Entities } from "../../../DataService/DataServiceEntities";
+import { ClientEntities, ProxyEntities } from "PosApi/Entities";
+import MessageDialog from "../../Dialogs/MessageDialog";
+import {
+    AddTenderLineToCartClientRequest, AddTenderLineToCartClientResponse,
+    ConcludeTransactionClientRequest,
+    ConcludeTransactionClientResponse,
+    GetCurrentCartClientRequest, GetCurrentCartClientResponse
+} from "PosApi/Consume/Cart"
+import { GetCustomerClientRequest, GetCustomerClientResponse } from "PosApi/Consume/Customer";
+import { IVoucherGramResult } from "./IVoucherGramResult";
+import LoadBalanceDialog from "../LoadBalance/LoadBalanceDialog";
+import { IGlobalInfo } from "../../../Interfaces/IGlobalInfo";
+import ListDialog from "../LoadBalance/LoadBalanceDialog";
+type VoucherDialogResolve = (value: IVoucherGramResult) => void;
+type VoucherDialogReject = (reason: any) => void;
+
+export default class VouchergramDialog extends Dialogs.ExtensionTemplatedDialogBase {
+    public messagePassedToDialog: Observable<string>;
+    public ExtensionProperties: ProxyEntities.CommerceProperty[];
+    public transactionId: Observable<string>;
+    public custmobileno: Observable<string>;
+    public custName: Observable<string>;
+    public disabledClick: Observable<boolean>;
+    public visiableClick: Observable<boolean>;
+    public txthideotp: Observable<boolean>;
+    public redeemAmount: Observable<number>;
+    public porderid: Observable<string>;
+    public txnType: Observable<string>;
+    public expiryDate: Observable<string>;
+    public amount: Observable<number>;
+    public walletBalance: Observable<number>;
+    public tenderType: string;
+    public txnId: Observable<string>;
+    public otp: Observable<string>;
+    private _resolve: VoucherDialogResolve;
+
+    constructor() {
+        super();
+        this.transactionId = ko.observable("");
+        this.custmobileno = ko.observable("");
+        this.custName = ko.observable("");
+        this.txnType = ko.observable("");
+        this.expiryDate = ko.observable("");
+        this.redeemAmount = ko.observable(0);
+        this.disabledClick = ko.observable(true);
+        this.visiableClick = ko.observable(true);
+        this.txthideotp = ko.observable(false);
+        this.tenderType = "";
+        this.otp = ko.observable("");
+        this.amount = ko.observable(0);
+        this.walletBalance = ko.observable(0);
+        this.porderid = ko.observable("");
+        this.txnId = ko.observable("");
+    }
+
+    public onReady(element: HTMLElement): void {
+        ko.applyBindings(this, element);
+        this.otp("");
+    }
+
+    public  open(custId: string, amount: number, transactionId: string, type: string): Promise<IVoucherGramResult> {
+        let currentCart: ProxyEntities.Cart;
+        return this.context.runtime.executeAsync<GetCurrentCartClientResponse>(new GetCurrentCartClientRequest())
+            .then((getCurrentCartClientResponse: ClientEntities.ICancelableDataResult<GetCurrentCartClientResponse>):
+                Promise<ClientEntities.ICancelableDataResult<GetCustomerClientResponse>> => {
+                currentCart = getCurrentCartClientResponse.data.result;
+                // Gets the current customer.
+                let result: Promise<ClientEntities.ICancelableDataResult<GetCustomerClientResponse>>;
+                if (!ObjectExtensions.isNullOrUndefined(currentCart) && !ObjectExtensions.isNullOrUndefined(currentCart.CustomerId)) {
+                    let getCurrentCustomerClientRequest: GetCustomerClientRequest<GetCustomerClientResponse> =
+                        new GetCustomerClientRequest(currentCart.CustomerId);
+                    result = this.context.runtime.executeAsync<GetCustomerClientResponse>(getCurrentCustomerClientRequest);
+                } else {
+                    result = Promise.resolve({ canceled: false, data: new GetCustomerClientResponse(null) });
+                }
+
+                return result;
+            }).then((getCurrentCustomerClientResponse: ClientEntities.ICancelableDataResult<GetCustomerClientResponse>):
+                Promise<IVoucherGramResult> => {
+
+                let currentCustomer: ProxyEntities.Customer = getCurrentCustomerClientResponse.data.result;
+                if (ObjectExtensions.isNullOrUndefined(currentCustomer)
+                    || ObjectExtensions.isNullOrUndefined(currentCustomer)) {
+
+                    this.custmobileno = (ko.observable(currentCustomer.Phone));
+                    this.custName = (ko.observable(currentCustomer.Name));
+
+                }
+                else {
+                    this.custmobileno = (ko.observable(currentCustomer.Phone));
+                    this.custName = (ko.observable(currentCustomer.Name));
+
+                }
+                let promise: Promise<IVoucherGramResult> = new Promise((resolve: VoucherDialogResolve, reject: VoucherDialogReject) => {
+                    this._resolve = resolve;
+                    let option: Dialogs.ITemplatedDialogOptions = {
+                        title: "VoucherGram",
+                        onCloseX: this.onCloseX.bind(this),
+                        button1: {
+                            id: "btnOk",
+                            label: "Close",
+                            isPrimary: true,
+                            onClick: this.btnOkClickHandler.bind(this, transactionId)
+                        },
+                    };
+
+                    this.openDialog(option);
+                });
+
+                this.transactionId = ko.observable(transactionId);
+                this.amount = ko.observable(amount);
+                this.custmobileno = (ko.observable(currentCustomer.Phone));
+                this.custName = (ko.observable(currentCustomer.Name));
+                this.tenderType = type;
+                this.otp("");
+                return promise;
+            })
+    }
+
+    private btnOkClickHandler(transactionId: string): boolean {
+        if (this.porderid() == "") {
+            this.resolvePromise(null);
+            return true;
+        }
+        else {
+            MessageDialog.show(this.context, "Requested uploaded.", "kindly Clear transaction  and try again!");
+            return false;
+        }//return true;
+    }
+    private onCloseX(): boolean {
+        return true;
+    }
+
+    private resolvePromise(result: IGlobalInfo): void {
+        if (ObjectExtensions.isFunction(this._resolve)) {
+            this._resolve(<IVoucherGramResult>{
+                updatedIGlobalInfo: result
+            });
+
+            this._resolve = null;
+        }
+    }
+
+    public getBalanceClicked(): void {
+        let custmobileno: string = (<HTMLOptionElement>document.getElementById('mobileno')).value;
+        let getCurrentCartClientRequest: GetCurrentCartClientRequest<GetCurrentCartClientResponse> =
+            new GetCurrentCartClientRequest("");
+        this.context.runtime.executeAsync(getCurrentCartClientRequest)
+            .then((response: ClientEntities.ICancelableDataResult<GetCurrentCartClientResponse>) => {
+                let transactionId: string = response.data.result.Id;
+
+                let Validate: Entities.Voucher = new Entities.Voucher({
+                    Id: 1,
+                    RequestName: "GETBALANCE",
+                    RequestStatus: "",
+                    ReturnMessage: "",
+                    ReturnCode: "",
+                    CustomerId: "",
+                    TransactionId: transactionId.toString(),
+                    MobileNo: this.custmobileno().toString(),
+                    CountryCode: "",
+                    IsAlert: "",
+                    InvoiceDate: "",
+                    AmountDue: "",
+                    OfferCode: "",
+                    CouponId:"",
+                    CouponValue: "",
+                    CouponBalance: "",
+                    CouponStatus: "",
+                    ExpiryDate: "",
+                    PartialAllowed: "",
+                    RedeemAmount: "",
+                    RedeemRequestId: "",
+                    IsOTPRequired: "",
+                    InvoiceNo: "",
+                    Param1: "",
+                    Param2: "",
+                    Param3: "",
+                    Param4: "",
+                    Param5: "",
+                    Param6: "",
+                    Param7: "",
+                    Param8: "",
+                    Param9: "",
+
+                });
+                let request: AcxVoucherData.VoucherDataRequest<AcxVoucherData.VoucherDataResponse>
+                    = new AcxVoucherData.VoucherDataRequest<AcxVoucherData.VoucherDataResponse>(1, Validate);
+                this.context.runtime.executeAsync(request)
+                    .then((response: ClientEntities.ICancelableDataResult<AcxVoucherData.VoucherDataResponse>) => {
+                        if (ObjectExtensions.isNullOrUndefined(response)
+                            || ObjectExtensions.isNullOrUndefined(response.data)
+                            || response.canceled) {
+                            return;
+                        }
+                        if (response.data.result[0].ReturnCode == "00") {
+                             let vgBal = Number(response.data.result[0].CouponBalance);
+                             this.walletBalance(vgBal);
+                             this.sendVoucherOtp();
+                             //setTimeout((): void => {
+                             //}, 1* 1000);
+                         }
+                         else {
+                             MessageDialog.show(this.context, response.data.result[0].ReturnMessage, "");
+                         }
+
+                    }).catch((reason: any) => {
+                        this.context.logger.logError("AcxCoupon: " + JSON.stringify(reason));
+
+                    });
+
+                return Promise.resolve({ canceled: true });
+            }).catch((reason: any) => {
+                this.context.logger.logError("GetCartInformation.:Error " + JSON.stringify(reason));
+                MessageDialog.show(this.context, " ", "GetCartInformation. Error: " + JSON.stringify(reason));
+                return Promise.resolve({ canceled: true });
+            });
+
+        this.resolvePromise(null);
+    }
+    public sendVoucherOtp(): void {
+         let custmobileno: string = (<HTMLOptionElement>document.getElementById('mobileno')).value;
+        if (custmobileno.length != 10) {
+            MessageDialog.show(this.context, "Error", "Dear Customer Please Input Number");
+        }
+        else {
+            let getCurrentCartClientRequest: GetCurrentCartClientRequest<GetCurrentCartClientResponse> =
+                new GetCurrentCartClientRequest("");
+            this.context.runtime.executeAsync(getCurrentCartClientRequest)
+                .then((response: ClientEntities.ICancelableDataResult<GetCurrentCartClientResponse>) => {
+                    let transactionId: string = response.data.result.Id;
+                    let Validate: Entities.Voucher = new Entities.Voucher({
+                        Id: 1,
+                        RequestName: "SENDOTP",
+                        RequestStatus: "",
+                        ReturnMessage: "",
+                        ReturnCode: "",
+                        CustomerId: "",
+                        TransactionId: transactionId.toString(),
+                        MobileNo: this.custmobileno().toString(),
+                        CountryCode: "",
+                        IsAlert: "",
+                        InvoiceDate: "",
+                        AmountDue: "",
+                        OfferCode: "",
+                        CouponId: "",
+                        CouponValue: "",
+                        CouponBalance: "",
+                        CouponStatus: "",
+                        ExpiryDate: "",
+                        PartialAllowed: "",
+                        RedeemAmount: "",
+                        RedeemRequestId: "",
+                        IsOTPRequired: "",
+                        InvoiceNo: "",
+                        Param1: "",
+                        Param2: "",
+                        Param3: "",
+                        Param4: "",
+                        Param5: "",
+                        Param6: "",
+                        Param7: "",
+                        Param8: "",
+                        Param9: "",
+
+                    });
+                    let request: AcxVoucherData.VoucherDataRequest<AcxVoucherData.VoucherDataResponse>
+                        = new AcxVoucherData.VoucherDataRequest<AcxVoucherData.VoucherDataResponse>(1, Validate);
+                    this.context.runtime.executeAsync(request)
+                        .then((response: ClientEntities.ICancelableDataResult<AcxVoucherData.VoucherDataResponse>) => {
+                            if (ObjectExtensions.isNullOrUndefined(response)
+                                || ObjectExtensions.isNullOrUndefined(response.data)
+                                || response.canceled) {
+                                return;
+                            }
+                            if (response.data.result[0].ReturnCode == "00") {
+                               MessageDialog.show(this.context, response.data.result[0].ReturnMessage, "OTP Generate Sucessfully");
+                               this.disabledClick(false);
+                               this.txthideotp(true);
+                           } else {
+                               MessageDialog.show(this.context, response.data.result[0].ReturnMessage, "");
+
+                           }
+
+                        }).catch((reason: any) => {
+                            this.context.logger.logError("AcxCoupon: " + JSON.stringify(reason));
+
+                        });
+                    return Promise.resolve({ canceled: true });
+                }).catch((reason: any) => {
+                    this.context.logger.logError("GetCartInformation.:Error " + JSON.stringify(reason));
+                    MessageDialog.show(this.context, " ", "GetCartInformation. Error: " + JSON.stringify(reason));
+                    return Promise.resolve({ canceled: true });
+                });
+        }
+        this.resolvePromise(null);
+    }
+    public evoucherClicked(): void {
+        let Otp: string = (<HTMLOptionElement>document.getElementById('otp')).value;
+        if (Otp.length <= 0) {
+            MessageDialog.show(this.context, "Error", "Please Enter the OTP.");
+        }
+        else {
+            let getCurrentCartClientRequest: GetCurrentCartClientRequest<GetCurrentCartClientResponse> =
+                new GetCurrentCartClientRequest("");
+            this.context.runtime.executeAsync(getCurrentCartClientRequest)
+                .then((response: ClientEntities.ICancelableDataResult<GetCurrentCartClientResponse>) => {
+                    let transactionId: string = response.data.result.Id;
+                    let Validate: Entities.Voucher = new Entities.Voucher({
+                        Id: 1,
+                        RequestName: "EVOUCHER",
+                        RequestStatus: "",
+                        ReturnMessage: "",
+                        ReturnCode: "",
+                        CustomerId: "",
+                        TransactionId: transactionId.toString(),
+                        MobileNo: this.custmobileno().toString(),
+                        CountryCode: "",
+                        IsAlert: "",
+                        InvoiceDate: "",
+                        AmountDue: "",
+                        OfferCode: "",
+                        CouponId: "",
+                        CouponValue: "",
+                        CouponBalance: "",
+                        CouponStatus: "",
+                        ExpiryDate: "",
+                        PartialAllowed: "",
+                        RedeemAmount: "",
+                        RedeemRequestId: "",
+                        IsOTPRequired: Otp.toString(),
+                        InvoiceNo: "",
+                        Param1: "",
+                        Param2: "",
+                        Param3: "",
+                        Param4: "",
+                        Param5: "",
+                        Param6: "",
+                        Param7: "",
+                        Param8: "",
+                        Param9: "",
+
+                    });
+                    let request: AcxVoucherData.VoucherDataRequest<AcxVoucherData.VoucherDataResponse>
+                        = new AcxVoucherData.VoucherDataRequest<AcxVoucherData.VoucherDataResponse>(1, Validate);
+                    this.context.runtime.executeAsync(request)
+                        .then((response: ClientEntities.ICancelableDataResult<AcxVoucherData.VoucherDataResponse>) => {
+                            if (ObjectExtensions.isNullOrUndefined(response)
+                                || ObjectExtensions.isNullOrUndefined(response.data)
+                                || response.canceled) {
+                                return;
+                            }
+                            if (response.data.result[0].ReturnCode == "00") {//|| (response.data.result[0].ReturnCode == "32")
+                                MessageDialog.show(this.context, response.data.result[0].ReturnMessage, "");
+                                let CouponEncrp = response.data.result[0].Param6;
+                                let Value = Number(response.data.result[0].CouponBalance);
+                                let VoucherInfoList: Entities.Voucher[] = [];
+                                response.data.result.forEach((RefPaymentInfo: Entities.Voucher): void => {
+                                    VoucherInfoList.push(RefPaymentInfo);
+                                });
+                                let dialog: ListDialog = new ListDialog();
+                                dialog.open(this.transactionId(), this.custmobileno());
+
+                            }
+                            else if (response.data.result[0].ReturnCode == "32") {
+                                let dialog: ListDialog = new ListDialog();
+                                dialog.open(this.transactionId(), this.custmobileno());
+                            }
+                            else{
+                                MessageDialog.show(this.context, response.data.result[0].ReturnMessage, "");
+
+                            }
+
+
+                        }).catch((reason: any) => {
+                            this.context.logger.logError("AcxVoucher: " + JSON.stringify(reason));
+
+                        });
+
+                    return Promise.resolve({ canceled: true });
+                }).catch((reason: any) => {
+                    this.context.logger.logError("GetCartInformation.:Error " + JSON.stringify(reason));
+                    MessageDialog.show(this.context, " ", "GetCartInformation. Error: " + JSON.stringify(reason));
+                    return Promise.resolve({ canceled: true });
+                });
+        }
+       // this.resolvePromise(null);
+    } 
+    public redeemAmountClicked(): void {
+        let Otp: string = (<HTMLOptionElement>document.getElementById('otp')).value;
+        if (Otp.length <= 0) {
+            MessageDialog.show(this.context, "Error", "Please Enter the OTP.");
+        }
+        var RedeemAmount: string = (<HTMLOptionElement>document.getElementById('redeemAmount')).value;
+        var Wallet: string = (<HTMLOptionElement>document.getElementById('walletBalance')).value;
+        if (Number(RedeemAmount) > Number(Wallet)) {
+            MessageDialog.show(this.context, "Redeem Amount", "Redeem Amount must be less than or equal to Wallet amount!!!");
+        }
+        else {
+
+            let getCurrentCartClientRequest: GetCurrentCartClientRequest<GetCurrentCartClientResponse> =
+                new GetCurrentCartClientRequest("");
+            this.context.runtime.executeAsync(getCurrentCartClientRequest)
+                .then((response: ClientEntities.ICancelableDataResult<GetCurrentCartClientResponse>) => {
+                    var redeemTender = false;
+                    response.data.result.TenderLines.forEach((tenderLine) => {
+                        let tenderTypeId: String = tenderLine.TenderTypeId;
+                        if (tenderLine.VoidStatusValue != 1 && tenderTypeId == "62") {
+                            redeemTender = true;       
+                            }
+                    });
+                    if (redeemTender) {
+                        MessageDialog.show(this.context, "Dear customer you already redeem the amount " + this.transactionId(), "First void and try again!!!")
+                        return Promise.resolve({ canceled: true });
+                    }
+                    else {
+                        let Validate: Entities.Voucher = new Entities.Voucher({
+                            Id: 1,
+                            RequestName: "REDEEMAMOUNT",
+                            RequestStatus: "",
+                            ReturnMessage: "",
+                            ReturnCode: "",
+                            CustomerId: "",
+                            TransactionId: this.transactionId().toString(),
+                            MobileNo: this.custmobileno().toString(),
+                            CountryCode: "",
+                            IsAlert: "",
+                            InvoiceDate: "",
+                            AmountDue: "",
+                            OfferCode: "",
+                            CouponId: "",
+                            CouponValue: "",
+                            CouponBalance: "",
+                            CouponStatus: "",
+                            ExpiryDate: "",
+                            PartialAllowed: "",
+                            RedeemAmount: RedeemAmount.toString(),
+                            RedeemRequestId: "",
+                            IsOTPRequired: Otp.toString(),
+                            InvoiceNo: "",
+                            Param1: "",
+                            Param2: "",
+                            Param3: "",
+                            Param4: "",
+                            Param5: "",
+                            Param6: "",
+                            Param7: "",
+                            Param8: "",
+                            Param9: "",
+
+                        });
+                        let request: AcxVoucherData.VoucherDataRequest<AcxVoucherData.VoucherDataResponse>
+                            = new AcxVoucherData.VoucherDataRequest<AcxVoucherData.VoucherDataResponse>(1, Validate);
+                        this.context.runtime.executeAsync(request)
+                            .then((response: ClientEntities.ICancelableDataResult<AcxVoucherData.VoucherDataResponse>) => {
+                                if (ObjectExtensions.isNullOrUndefined(response)
+                                    || ObjectExtensions.isNullOrUndefined(response.data)
+                                    || response.canceled) {
+                                    return;
+                                }
+                                if (response.data.result[0].ReturnCode == "00") {
+                                    MessageDialog.show(this.context, response.data.result[0].ReturnMessage, "");
+                                    this.visiableClick(false);
+                                    this.porderid = ko.observable(response.data.result[0].Param1);
+                                    this.expiryDate = ko.observable(response.data.result[0].ExpiryDate);
+                                    this.custmobileno = ko.observable(response.data.result[0].MobileNo);
+                                    this.txnId = ko.observable(response.data.result[0].CouponId);
+                                } else {
+                                    MessageDialog.show(this.context, response.data.result[0].ReturnMessage, "");
+
+                                }
+
+                            }).catch((reason: any) => {
+                                this.context.logger.logError("AcxVoucher: " + JSON.stringify(reason));
+
+                            });
+                    }
+                 
+                    
+                        return Promise.resolve({ canceled: false });
+
+                    }).catch((reason: any) => {
+                        this.context.logger.logError("GetCartInformation.:Error " + JSON.stringify(reason));
+                        MessageDialog.show(this.context, " ", "GetCartInformation. Error: " + JSON.stringify(reason));
+                        return Promise.resolve({ canceled: true });
+                      });
+        }
+    }
+    public getStatusClicked(): void {
+        let getCurrentCartClientRequest: GetCurrentCartClientRequest<GetCurrentCartClientResponse> =
+            new GetCurrentCartClientRequest("");
+        this.context.runtime.executeAsync(getCurrentCartClientRequest)
+            .then((response: ClientEntities.ICancelableDataResult<GetCurrentCartClientResponse>) => {
+                let transactionId: string = response.data.result.Id;
+                let Validate: Entities.Voucher = new Entities.Voucher({
+                    Id: 1,
+                    RequestName: "VOUCHERSTATUS",
+                    RequestStatus: "",
+                    ReturnMessage: "",
+                    ReturnCode: "",
+                    CustomerId: "",
+                    TransactionId: transactionId.toString(),
+                    MobileNo: this.custmobileno().toString(),
+                    CountryCode: "",
+                    IsAlert: "",
+                    InvoiceDate: "",
+                    AmountDue: this.redeemAmount().toString(),
+                    OfferCode: "",
+                    CouponId: "",
+                    CouponValue: "",
+                    CouponBalance: "",
+                    CouponStatus: "",
+                    ExpiryDate: "",
+                    PartialAllowed: "",
+                    RedeemAmount: "",
+                    RedeemRequestId: "",
+                    IsOTPRequired: "",
+                    InvoiceNo: this.txnId().toString(),
+                    Param1: this.porderid().toString(),
+                    Param2: "",
+                    Param3: "",
+                    Param4: "",
+                    Param5: "",
+                    Param6: "",
+                    Param7: "",
+                    Param8: "",
+                    Param9: "",
+                });
+                let request: AcxVoucherData.VoucherDataRequest<AcxVoucherData.VoucherDataResponse>
+                    = new AcxVoucherData.VoucherDataRequest<AcxVoucherData.VoucherDataResponse>(1, Validate);
+                this.context.runtime.executeAsync(request)
+                    .then((response: ClientEntities.ICancelableDataResult<AcxVoucherData.VoucherDataResponse>) => {
+                        if (ObjectExtensions.isNullOrUndefined(response)
+                            || ObjectExtensions.isNullOrUndefined(response.data)
+                            || response.canceled) {
+                            return;
+                        }
+                        if (response.data.result[0].ReturnCode == "00") {
+                            MessageDialog.show(this.context, response.data.result[0].ReturnMessage, "");
+
+                            this.txnId = ko.observable(response.data.result[0].Param1);
+                            this.porderid = ko.observable(response.data.result[0].Param2);
+                            this.txnType = ko.observable(response.data.result[0].Param3);
+                            this.expiryDate = ko.observable(response.data.result[0].ExpiryDate);
+                            let t1 = new ProxyEntities.CartTenderLineClass();
+                            t1.Amount = Number(this.redeemAmount());
+                            //if (this.tenderType.toUpperCase() == "VOUCHERGRAM") {
+                            //    t1.TenderTypeId = "62";
+                            //}
+                            t1.TenderTypeId = "62";
+                            t1.Currency = "INR";
+                            t1.AmountInTenderedCurrency = Number(this.redeemAmount());
+                            t1.AuthorizedAmount = Number(this.redeemAmount());
+                            let t1ExtProperties: ProxyEntities.CommerceProperty[] = [];
+                            let ReedemAmount: ProxyEntities.CommerceProperty = {
+                                Key: "AMOUNT",
+                                Value: <ProxyEntities.CommercePropertyValue>{
+                                    StringValue: this.redeemAmount().toString(),
+                                }
+                            };
+                            t1ExtProperties[t1ExtProperties.length] = new ProxyEntities.CommercePropertyClass(ReedemAmount);
+                            let OfferCode: ProxyEntities.CommerceProperty = {
+                                Key: "PORDERID",
+                                Value: <ProxyEntities.CommercePropertyValue>{
+                                    StringValue: this.porderid(),
+                                }
+                            };
+                            t1ExtProperties[t1ExtProperties.length] = new ProxyEntities.CommercePropertyClass(OfferCode);
+                            let TxnID: ProxyEntities.CommerceProperty = {
+                                Key: "TXNTYPE",
+                                Value: <ProxyEntities.CommercePropertyValue>{
+                                    StringValue: this.txnType(),
+                                }
+                            };
+                            t1ExtProperties[t1ExtProperties.length] = new ProxyEntities.CommercePropertyClass(TxnID);
+                            let RequestId: ProxyEntities.CommerceProperty = {
+                                Key: "TXNID",
+                                Value: <ProxyEntities.CommercePropertyValue>{
+                                    StringValue: this.txnId(),// response.data.result[0].RedeemRequestId,
+                                }
+                            };
+                            t1ExtProperties[t1ExtProperties.length] = new ProxyEntities.CommercePropertyClass(RequestId);
+                            let CUSTMOBILENO: ProxyEntities.CommerceProperty = {
+                                Key: "CUSTMOBILENO",
+                                Value: <ProxyEntities.CommercePropertyValue>{
+                                    StringValue: this.custmobileno(),
+                                }
+                            };
+                            t1ExtProperties[t1ExtProperties.length] = new ProxyEntities.CommercePropertyClass(CUSTMOBILENO);
+                            let ExpiryDate: ProxyEntities.CommerceProperty = {
+                                Key: "EXPIRYDATE",
+                                Value: <ProxyEntities.CommercePropertyValue>{
+                                    StringValue: this.expiryDate(),
+                                }
+                            };
+                            t1ExtProperties[t1ExtProperties.length] = new ProxyEntities.CommercePropertyClass(ExpiryDate);
+                            t1.ExtensionProperties = t1ExtProperties;
+                            /*Tender Line*/
+                            let addTenderLineToCartClientRequest: AddTenderLineToCartClientRequest<AddTenderLineToCartClientResponse> =
+                                new AddTenderLineToCartClientRequest(t1);
+                            this.context.runtime.executeAsync(addTenderLineToCartClientRequest)
+                                .then((response: ClientEntities.ICancelableDataResult<AddTenderLineToCartClientResponse>) => {
+                                    let ConcludeTransService: ConcludeTransactionClientRequest<ConcludeTransactionClientResponse> =
+                                        new ConcludeTransactionClientRequest("");
+                                    this.context.runtime.executeAsync(ConcludeTransService);
+                                    return Promise.resolve({ canceled: true });
+
+                                }).catch((reason: any) => {
+                                    this.context.logger.logError("Adding Tender Line  failed. Error: " + JSON.stringify(reason));
+                                    MessageDialog.show(this.context, " ", "Adding Tender Line  failed. Error: " + JSON.stringify(reason));
+                                    return Promise.resolve({ canceled: true });
+                                });
+                            this.closeDialog();
+
+                        } else {
+                            MessageDialog.show(this.context, response.data.result[0].ReturnMessage, "");
+
+                        }
+
+                    }).catch((reason: any) => {
+                        this.context.logger.logError("AcxVoucher: " + JSON.stringify(reason));
+
+                    });
+
+                return Promise.resolve({ canceled: true });
+            }).catch((reason: any) => {
+                this.context.logger.logError("GetCartInformation.:Error " + JSON.stringify(reason));
+                MessageDialog.show(this.context, " ", "GetCartInformation. Error: " + JSON.stringify(reason));
+                return Promise.resolve({ canceled: true });
+            });
+    }
+
+}
