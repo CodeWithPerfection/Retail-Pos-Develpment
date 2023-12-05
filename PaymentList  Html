@@ -1,0 +1,72 @@
+@This is Html Page for paymentList Dialog i the html use create the field and  Create the button .
+It is related to PamentListDialog.
+
+
+***************************************************************************************************************
+<!DOCTYPE html>
+
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="utf-8" />
+    <title>Voucher Gram</title>
+    <link rel="stylesheet" href="DialogSampleStyles.min.css" />
+</head>
+<body>
+    <div>
+        <div>
+            <div>
+                <div class="h3 primaryFontColor">Customer Name</div>
+                <input type="text" id="custName" data-bind="value: custName" readonly />
+            </div>
+            <div>
+                <div class="h3 primaryFontColor">Mobile Number</div>
+                <input type="text" id="mobileno" data-bind="value: custmobileno" readonly />
+            </div>
+            <div>
+                <div class="h3 primaryFontColor">Amount</div>
+                <input type="number" id="amount" data-bind="value: amount" readonly />
+            </div>
+            <div>
+                <div class="h3 primaryFontColor">Wallet Amount</div>
+                <input type="number" id="walletBalance" data-bind="value: walletBalance" readonly />
+            </div>
+            <br />
+            <div class="col" style=" margin-top:5px;">
+                <button class="primaryButton" style="font-size:15px; border-radius:2px;" data-bind="click: getBalanceClicked "> Get Balance</button>
+                <br />
+            </div>
+            <div class="col" style=" margin-top:5px;">
+                <button class="primaryButton" style="font-size:15px; border-radius:2px;" data-bind="click:sendVoucherOtp"> Resend Otp </button>
+                <br />
+            </div>
+            <div>
+                <div data-bind=" visible:txthideotp" class="h3 primaryFontColor">Enter Otp</div>
+                <input type="number" id="otp" pattern="[0-9]*"  data-bind="value: otp, visible:txthideotp" />
+            </div>
+            <br />
+            <div class="col" style=" margin-top:5px;">
+                <button class="primaryButton" style="font-size:15px; border-radius:2px;" data-bind="click:evoucherClicked,disable:disabledClick"> Add Voucher To Wallet</button>
+                <br />
+            </div>
+            <div>
+                <div data-bind=" visible:txthideotp" class="h3 primaryFontColor">Redeem Amount</div>
+                <input type="number" id="redeemAmount" pattern="[0-9]*"  data-bind="value: redeemAmount,visible:txthideotp" />
+            </div>
+            <br />
+            <div class="col" style=" margin-top:5px;">
+                <button class="primaryButton" style="font-size:15px; border-radius:2px;" data-bind="click: redeemAmountClicked,disable:disabledClick"> Redeem Amount</button>
+                <br />
+            </div>
+            <br />
+            <br />
+            <div class="col" style=" margin-top:5px;">
+                <button class="primaryButton" style="font-size:15px; border-radius:2px;" data-bind="click: getStatusClicked,disable:visiableClick"> Get Status</button>
+                <br />
+            </div>
+
+        </div>
+        <div class="grow"></div>
+        <div class="row"></div>
+    </div>
+</body>
+</html>
