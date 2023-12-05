@@ -1,0 +1,9 @@
+@ interface for pamentList 
+
+import { IGlobalInfo } from "../../../Interfaces/IGlobalInfo";
+
+export interface IVoucherGramResult {
+    updatedIGlobalInfo: IGlobalInfo;
+    MobileNo: string;
+
+}
